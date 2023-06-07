@@ -260,15 +260,12 @@ void RotateLeft(int amount)
   }
   else if (state == valueScreen)
   {
-    if (displayValue[sliderNumber] > 0)
-    {
       displayValue[sliderNumber] -= amount;
       if (displayValue[sliderNumber] < 0)
       {
         displayValue[sliderNumber] = 0;
       }
       UpdateSliders();
-    }
     // if (displayValue[sliderNumber] >= increment[sliderNumber])
     // { // decreasing slider
     //   displayValue[sliderNumber] = displayValue[sliderNumber] - increment[sliderNumber];
@@ -290,15 +287,12 @@ void RotateRight(int amount)
   }
   else if (state == valueScreen)
   {
-    if (displayValue[sliderNumber] < 100)
-    {
       displayValue[sliderNumber] += amount;
       if (displayValue[sliderNumber] > 100)
       {
         displayValue[sliderNumber] = 100;
       }
       UpdateSliders();
-    }
 
     // if ((100 - displayValue[sliderNumber]) >= increment[sliderNumber])
     // { // increasing slider

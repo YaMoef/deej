@@ -30,7 +30,6 @@ const String sliderNames[amountSliders] = {
     "Teams",
     "Mic",
 };
-const int increment[amountSliders] = {5, 2, 2, 2, 2, 2, 5};            // choose you're increment for each slider 1,2,4,5,10,20,25,50,100
 const int I2CAddress = 0x50;                                           // most common EEPROM module I²C address
 int displayValue[amountSliders] = {100, 100, 100, 100, 100, 100, 100}; // start values for every slider
 
@@ -336,15 +335,12 @@ void RotateLeft(int amount)
   }
   else if (state == valueScreen)
   {
-    if (displayValue[sliderNumber] > 0)
-    {
       displayValue[sliderNumber] -= amount;
       if (displayValue[sliderNumber] < 0)
       {
         displayValue[sliderNumber] = 0;
       }
       UpdateSliders();
-    }
     // if (displayValue[sliderNumber] >= increment[sliderNumber])
     // { // decreasing slider
     //   displayValue[sliderNumber] = displayValue[sliderNumber] - increment[sliderNumber];
@@ -366,15 +362,12 @@ void RotateRight(int amount)
   }
   else if (state == valueScreen)
   {
-    if (displayValue[sliderNumber] < 100)
-    {
       displayValue[sliderNumber] += amount;
       if (displayValue[sliderNumber] > 100)
       {
         displayValue[sliderNumber] = 100;
       }
       UpdateSliders();
-    }
 
     // if ((100 - displayValue[sliderNumber]) >= increment[sliderNumber])
     // { // increasing slider
