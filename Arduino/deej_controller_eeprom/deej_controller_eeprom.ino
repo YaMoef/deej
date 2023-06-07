@@ -15,6 +15,10 @@ const int useEEPROM = 0; // 0: use external eeprom
                          // 1: use internal eeprom
 const int PIN_ENCODER_A = 8;
 const int PIN_ENCODER_B = 9;
+const int MULTIPLIER = 5;
+const int STEPSIZE = 1;
+const unsigned long PAUSELENGTH = 150000;
+
 const int SW = 7;
 const int amountSliders = 7; // amount of sliders you want, also name them in the array below
 const String sliderNames[amountSliders] = {
@@ -26,21 +30,24 @@ const String sliderNames[amountSliders] = {
     "Teams",
     "Mic",
 };
-const int increment[amountSliders] = {5, 2, 2, 2, 2, 2, 5};                // choose you're increment for each slider 1,2,4,5,10,20,25,50,100
-const int I2CAddress = 0x50;                                                     // most common EEPROM module I²C address
+const int increment[amountSliders] = {5, 2, 2, 2, 2, 2, 5};            // choose you're increment for each slider 1,2,4,5,10,20,25,50,100
+const int I2CAddress = 0x50;                                           // most common EEPROM module I²C address
 int displayValue[amountSliders] = {100, 100, 100, 100, 100, 100, 100}; // start values for every slider
 
 // leave following values at their default
 RotaryEncoder encoder(PIN_ENCODER_A, PIN_ENCODER_B, RotaryEncoder::LatchMode::FOUR3);
 bool prev_a = false;
 bool prev_b = false;
+unsigned long lastENCreadTime = micros();
+int ENCcounter = 0;
+int lastENCread = 0;
 enum
 {
   extEEPROM = 0,
   intEEPROM = 1
 };
 int previousValue[amountSliders] = {100, 100, 100, 100, 100, 100, 100}; // extra values to see if it changed compared to last cycle
-int sliderNumber = 0; // variable which numbers all the sliders
+int sliderNumber = 0;                                                   // variable which numbers all the sliders
 unsigned long lastButtonPress = 0;
 bool singleButtonPress = false;
 int state = 0; // state 0 is the menu screen to select what you want to change
@@ -50,7 +57,7 @@ enum
   menuScreen = 0,
   valueScreen = 1
 };
-int EEPROMvalue = 0; //value to read in value from eeprom or to save them temporarly
+int EEPROMvalue = 0; // value to read in value from eeprom or to save them temporarly
 byte reading = 0;
 byte arrow[8] = { // byte for creating an arrow on the lcd screen
     B11000,
@@ -183,25 +190,34 @@ void loop()
 {
   bool cur_a = digitalRead(PIN_ENCODER_A);
   bool cur_b = digitalRead(PIN_ENCODER_B);
-  if(prev_a!= cur_a || prev_b!=cur_b){
+  if (prev_a != cur_a || prev_b != cur_b)
+  {
     encoder.tick();
-//    Serial.println("tick");
+    //    Serial.println("tick");
   }
   prev_a = cur_a;
   prev_b = cur_b;
   RotaryEncoder::Direction direction = encoder.getDirection(); // get direction from encoder
   if (direction != RotaryEncoder::Direction::NOROTATION)
   { // do something if there is a rotation
-    Serial.println("t<urning");
+    // Serial.println("turning");
     if (direction == RotaryEncoder::Direction::CLOCKWISE)
     { // direction is CW
-        Serial.println("rotateRight");
-      RotateRight();
+      //  Serial.println("rotateRight");
+      int turnValue = calculateTurnValue(1);
+      Serial.print("Turning right with value ");
+      Serial.println(turnValue);
+      // int turnValue = calculateTurnValue(RotaryEncoder::Direction::CLOCKWISE)
+      RotateRight(turnValue);
     }
     if (direction == RotaryEncoder::Direction::COUNTERCLOCKWISE)
     { // direction is CCW
-        Serial.println("rotateLeft");
-      RotateLeft();
+      //  Serial.println("rotateLeft");
+      // int turnValue = calculateTurnValue(RotaryEncoder::Direction::COUNTERCLOCKWISE)
+      int turnValue = calculateTurnValue(-1);
+      Serial.print("Turning left with value ");
+      Serial.println(turnValue);
+      RotateLeft(turnValue);
     }
   }
 
@@ -308,7 +324,7 @@ void UpdateEEPROM()
   }
 }
 
-void RotateLeft()
+void RotateLeft(int amount)
 {
   if (state == menuScreen)
   {
@@ -320,16 +336,25 @@ void RotateLeft()
   }
   else if (state == valueScreen)
   {
-    if (displayValue[sliderNumber] >= increment[sliderNumber])
-    { // decreasing slider
-      displayValue[sliderNumber] = displayValue[sliderNumber] - increment[sliderNumber];
+    if (displayValue[sliderNumber] > 0)
+    {
+      displayValue[sliderNumber] -= amount;
+      if (displayValue[sliderNumber] < 0)
+      {
+        displayValue[sliderNumber] = 0;
+      }
       UpdateSliders();
     }
+    // if (displayValue[sliderNumber] >= increment[sliderNumber])
+    // { // decreasing slider
+    //   displayValue[sliderNumber] = displayValue[sliderNumber] - increment[sliderNumber];
+    //   UpdateSliders();
+    // }
   }
   UpdateLCD();
 }
 
-void RotateRight()
+void RotateRight(int amount)
 {
   if (state == menuScreen)
   { // scrolling between all the slides
@@ -341,11 +366,21 @@ void RotateRight()
   }
   else if (state == valueScreen)
   {
-    if ((100 - displayValue[sliderNumber]) >= increment[sliderNumber])
-    { // increasing slider
-      displayValue[sliderNumber] = displayValue[sliderNumber] + increment[sliderNumber];
+    if (displayValue[sliderNumber] < 100)
+    {
+      displayValue[sliderNumber] += amount;
+      if (displayValue[sliderNumber] > 100)
+      {
+        displayValue[sliderNumber] = 100;
+      }
       UpdateSliders();
     }
+
+    // if ((100 - displayValue[sliderNumber]) >= increment[sliderNumber])
+    // { // increasing slider
+    //   displayValue[sliderNumber] = displayValue[sliderNumber] + increment[sliderNumber];
+    //   UpdateSliders();
+    // }
   }
   UpdateLCD();
 }
@@ -381,4 +416,35 @@ void ButtonPress()
 int sliderToIndicator(int valueToConvert)
 {
   return map(valueToConvert, 0, 100, 1, amountIndicator);
+}
+
+int calculateTurnValue(int returnVal)
+{
+  int changevalue = 1;
+  if (returnVal == lastENCread)
+  { // still turning in the same direction
+    ENCcounter++;
+    unsigned long difference = (micros() - lastENCreadTime);
+    Serial.print("Difference is ");
+    Serial.println(difference);
+    Serial.println(difference < PAUSELENGTH);
+    if (difference < PAUSELENGTH)
+    {
+      changevalue = max((ENCcounter / STEPSIZE) * MULTIPLIER, 1);
+      Serial.println(changevalue);
+    }
+    else
+    {
+      ENCcounter = 0;
+    }
+    lastENCreadTime = micros();
+    Serial.print("lastENCreadTime ");
+    Serial.println(lastENCreadTime);
+  }
+  else
+  { // turned into other direction, resetting counter
+    ENCcounter = 0;
+  }
+  lastENCread = returnVal;
+  return abs(returnVal * changevalue);
 }
