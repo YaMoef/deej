@@ -69,7 +69,7 @@ The knob is a model of Neolker and can be found [here](https://www.printables.co
 
 # Building deej
 
-This is a custom version of the deej and needs to be builded, this can be done in the scripts folder.
+This is a custom version of the deej and needs to be built, this can be done in the scripts folder.
 
 # Contact
 
